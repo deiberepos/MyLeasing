@@ -9,13 +9,16 @@ namespace MyLeasing.Web.Helpers
     {
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly SignInManager<User> _signInManager;
 
         public UserHelper(
             UserManager<User> userManager,
-            RoleManager<IdentityRole> roleManager)
+            RoleManager<IdentityRole> roleManager,
+            SignInManager<User> signInManager)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _signInManager = signInManager;
         }
 
         public async Task<IdentityResult> AddUserAsync(User user, string password)
@@ -51,14 +54,19 @@ namespace MyLeasing.Web.Helpers
             return await _userManager.IsInRoleAsync(user, roleName);
         }
 
-        public Task<SignInResult> LoginAsync(LoginViewModel model)
+        public async Task<SignInResult> LoginAsync(LoginViewModel model)
         {
-            throw new System.NotImplementedException();
+            return await _signInManager.PasswordSignInAsync(
+                model.Username,
+                model.Password,
+                model.RememberMe,
+                false);//Este parametro es para definir los intentos permitidos si se coloca en true
         }
 
-        public Task LogoutAsync()
+        public async Task LogoutAsync()
         {
-            throw new System.NotImplementedException();
+            await _signInManager.SignOutAsync();
         }
+
     }
 }
