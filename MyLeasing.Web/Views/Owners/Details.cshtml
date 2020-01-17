@@ -71,6 +71,15 @@ else
             <th>
                 @Html.DisplayNameFor(model => model.Properties.FirstOrDefault().Rooms)
             </th>
+            <th>
+                Images
+            </th>
+            <th>
+                Contracts
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Properties.FirstOrDefault().IsAvailable)
+            </th>
             <th></th>
         </tr>
     </thead>
@@ -92,6 +101,15 @@ else
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Rooms)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.PropertyImages.Count)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Contracts.Count)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.IsAvailable)
             </td>
             <td>
                 <a asp-action="EditProperty" asp-route-id="@item.Id" class="btn btn-warning">Edit</a> |

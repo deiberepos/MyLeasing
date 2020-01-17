@@ -52,8 +52,10 @@ namespace MyLeasing.Web
                 cfg.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
             });
 
-            services.AddTransient<SeedDb>();
-            services.AddScoped<IUserHelper, UserHelper>();
+            services.AddTransient<SeedDb>();//La crea una sola vez
+            services.AddScoped<IUserHelper, UserHelper>();//Crea una nueva instancia y la envia
+            services.AddScoped<ICombosHelper, CombosHelper>();
+            services.AddScoped<IConverterHelper, ConverterHelper>();
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 
