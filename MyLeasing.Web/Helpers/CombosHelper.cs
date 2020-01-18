@@ -15,6 +15,25 @@ namespace MyLeasing.Web.Helpers
         {
             _dataContext = dataContext;
         }
+
+        public IEnumerable<SelectListItem> GetComboLessees()
+        {
+            var list = _dataContext.Lessees.Select(l => new SelectListItem
+            {
+                Text = l.User.FullNameWithDocument,//lo que muestra en el combo
+                Value = $"{l.Id}"//el valor que se va a guardar cuando seleccione del combo
+            })
+                .OrderBy(l => l.Text)
+                .ToList();
+
+            list.Insert(0, new SelectListItem
+            {
+                Text = "(Seleccione un arrendatario)",
+                Value = "0"
+            });
+            return list;
+        }
+
         public IEnumerable<SelectListItem> GetComboPropertyTypes()
         {
             var list = _dataContext.PropertyTypes.Select(pt => new SelectListItem

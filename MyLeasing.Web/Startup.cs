@@ -56,6 +56,7 @@ namespace MyLeasing.Web
             services.AddScoped<IUserHelper, UserHelper>();//Crea una nueva instancia y la envia
             services.AddScoped<ICombosHelper, CombosHelper>();
             services.AddScoped<IConverterHelper, ConverterHelper>();
+            services.AddScoped<IImageHelper, ImageHelper>();
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 

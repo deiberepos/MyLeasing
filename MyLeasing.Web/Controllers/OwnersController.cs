@@ -20,17 +20,20 @@ namespace MyLeasing.Web.Controllers
         private readonly IUserHelper _userHelper;
         private readonly ICombosHelper _combosHelper;
         private readonly IConverterHelper _converterHeper;
+        private readonly IImageHelper _imageHelper;
 
         public OwnersController(
             DataContext dataContext,
             IUserHelper userHelper,
             ICombosHelper combosHelper,
-            IConverterHelper converterHeper)
+            IConverterHelper converterHeper,
+            IImageHelper imageHelper)
         {
             _dataContext = dataContext;
             _userHelper = userHelper;
             _combosHelper = combosHelper;
             _converterHeper = converterHeper;
+            _imageHelper = imageHelper;
         }
 
         // GET: Owners
@@ -251,6 +254,172 @@ namespace MyLeasing.Web.Controllers
             return View(model);
         }
 
-        
+        public async Task<IActionResult> EditProperty(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var property = await _dataContext.Properties
+                .Include(p => p.Owner)
+                .Include(p => p.PropertyType)
+                .FirstOrDefaultAsync(p => p.Id == id.Value);
+            if (property == null)
+            {
+                return NotFound();
+            }
+
+            var model = _converterHeper.ToPropertyViewModel(property);
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EditProperty(PropertyViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var property = await _converterHeper.ToPropertyAsync(model, false);
+                _dataContext.Properties.Update(property);
+                await _dataContext.SaveChangesAsync();
+                return RedirectToAction($"Details/{model.OwnerId}");
+            }
+            return View(model);
+        }
+
+        public async Task<IActionResult> DetailsProperty(int? id)
+        {
+            if (id == null)//Validamos el id de la propiedad
+            {
+                return NotFound();
+            }
+
+            var property = await _dataContext.Properties//Consulta relacionada que trae muchos valores
+                .Include(o => o.Owner) //de las relaciones, gracias a Linq son inner joins
+                .ThenInclude(o => o.User)
+                .Include(o => o.Contracts)
+                .ThenInclude(c => c.Lessee)
+                .ThenInclude(l => l.User)
+                .Include(o => o.PropertyType)
+                .Include(p => p.PropertyImages)
+                .FirstOrDefaultAsync(m => m.Id == id);
+            if (property == null)
+            {
+                return NotFound();
+            }
+            //Le enviamos el objeto property a la vista (ni tabla ni relación, es un objeto)
+            return View(property);
+        }
+
+        public async Task<IActionResult> AddImage(int? id)
+        {
+            //Validamos el id de la propiedad
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            //Buscamos la propiedad
+            var property = await _dataContext.Properties.FindAsync(id.Value);
+            if (property == null)
+            {
+                return NotFound();
+            }
+             //Creamos el modelo para enviar a la vista
+            var model = new PropertyImageViewModel
+            {
+                Id = property.Id
+            };
+
+            return View(model);
+            //En la vista el usuario selecciona la imagen y vuelve al post
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddImage(PropertyImageViewModel model)
+        {
+            //Validamos si el modelo es válido
+            if (ModelState.IsValid)
+            {
+                //creamos la variable path asumiendo que adiciono la imagen
+                var path = string.Empty;
+
+                //Imagefile=Iformfile donde se captura la imagen
+                //Si hay una imagen
+                if (model.ImageFile != null)
+                {
+                    //Llamamos al método que creamos en la interface para subir la imagen
+                    //nos devuelve la ruta de como se va ha guradar en la bd
+                    path = await _imageHelper.UploadImageAsync(model.ImageFile);
+                }
+
+                //Creamos el objeto PropertyImage 
+                var propertyImage = new PropertyImage
+                {
+                    ImageUrl = path,//Es la ruta que nos devovlio del método en la interface
+                    //buscamos el objeto con el id, ya que desde el get no lo podemos enviar
+                    Property = await _dataContext.Properties.FindAsync(model.Id)
+                };
+
+                //Finalmente guardamos en la coleccion de imagenes la propertyImage
+                //retornamos al detailsProperty con el id de la propiedad
+                _dataContext.PropertyImages.Add(propertyImage);
+                await _dataContext.SaveChangesAsync();
+                return RedirectToAction($"{nameof(DetailsProperty)}/{model.Id}");
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> AddContract(int? id)
+        {
+            if (id == null)//Valida si el id de la propiedad no es nulo
+            {
+                return NotFound();
+            }
+
+            //mediante una consulta relacionada busca el objeto owner
+            // usando el id de la propiedad
+            var property = await _dataContext.Properties
+                .Include(p => p.Owner)
+                .FirstOrDefaultAsync(p => p.Id == id.Value);
+            if (property == null)
+            {
+                return NotFound();
+            }
+
+            var model = new ContractViewModel
+            {
+                //gracias a la consulta relacionada ya podemos completar el modelo
+                //sacando los id que necesitamos enviarle
+                OwnerId = property.Owner.Id,
+                PropertyId = property.Id,
+                //Es la funcion que se debe armar en el combosHelper para tener 
+                //el combo box con los arrendatarios
+                Lessees = _combosHelper.GetComboLessees(),
+                Price = property.Price,//dejamos por defecto el precio inicial
+                StartDate = DateTime.Today,//la fecha inicial será la fecha del sistema
+                EndDate = DateTime.Today.AddYears(1)//la fecha final le sumamos 1 año
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddContract(ContractViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var contract = await _converterHeper.ToContractAsync(model, true);
+                _dataContext.Contracts.Add(contract);
+                await _dataContext.SaveChangesAsync();
+                return RedirectToAction($"{nameof(DetailsProperty)}/{model.PropertyId}");
+            }
+
+            return View(model);
+        }
+
+
     }
 }
