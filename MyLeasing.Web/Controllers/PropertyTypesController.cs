@@ -125,21 +125,18 @@ namespace MyLeasing.Web.Controllers
             }
 
             var propertyType = await _context.PropertyTypes
+                .Include(pt=>pt.Properties)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (propertyType == null)
             {
                 return NotFound();
             }
 
-            return View(propertyType);
-        }
-
-        // POST: PropertyTypes/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var propertyType = await _context.PropertyTypes.FindAsync(id);
+            if(propertyType.Properties.Count>0)
+            {
+                //TODO: Message
+                return RedirectToAction(nameof(Index));
+            }
             _context.PropertyTypes.Remove(propertyType);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
