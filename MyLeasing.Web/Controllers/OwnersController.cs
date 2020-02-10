@@ -135,7 +135,6 @@ namespace MyLeasing.Web.Controllers
             return null;
         }
 
-        // GET: Owners/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -143,50 +142,53 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var owner = await _dataContext.Owners.FindAsync(id);
+            var owner = await _dataContext.Owners
+                .Include(o => o.User)
+                .FirstOrDefaultAsync(o => o.Id == id.Value);
             if (owner == null)
             {
                 return NotFound();
             }
-            return View(owner);
+
+            var model = new EditUserViewModel
+            {
+                Address = owner.User.Address,
+                Document = owner.User.Document,
+                FirstName = owner.User.FirstName,
+                Id = owner.Id,
+                LastName = owner.User.LastName,
+                PhoneNumber = owner.User.PhoneNumber
+            };
+
+            return View(model);
         }
 
-        // POST: Owners/Edit/5
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id")] Owner owner)
+        public async Task<IActionResult> Edit(EditUserViewModel model)
         {
-            if (id != owner.Id)
-            {
-                return NotFound();
-            }
-
             if (ModelState.IsValid)
             {
-                try
-                {
-                    _dataContext.Update(owner);
-                    await _dataContext.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!OwnerExists(owner.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+                var owner = await _dataContext.Owners
+                    .Include(o => o.User)
+                    .FirstOrDefaultAsync(o => o.Id == model.Id);
+
+                owner.User.Document = model.Document;
+                owner.User.FirstName = model.FirstName;
+                owner.User.LastName = model.LastName;
+                owner.User.Address = model.Address;
+                owner.User.PhoneNumber = model.PhoneNumber;
+
+                await _userHelper.UpdateUserAsync(owner.User);
                 return RedirectToAction(nameof(Index));
             }
-            return View(owner);
+
+            return View(model);
         }
 
+
         // GET: Owners/Delete/5
+        //Como usamos javascript no necesitamos una acción Post
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -195,25 +197,27 @@ namespace MyLeasing.Web.Controllers
             }
 
             var owner = await _dataContext.Owners
+                .Include(o => o.User)
+                .Include(o=> o.Properties)//Para validar que no se pueda borrar si tiene propiedades
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (owner == null)
             {
                 return NotFound();
             }
+            if (owner.Properties.Count !=0)
+            {
+                ModelState.AddModelError(string.Empty, "Este propietario no se puede borrar porque tiene propiedades creadas");
+                return RedirectToAction(nameof(Index));
+            }
 
-            return View(owner);
-        }
-
-        // POST: Owners/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var owner = await _dataContext.Owners.FindAsync(id);
+            //Borramos el propietario
             _dataContext.Owners.Remove(owner);
             await _dataContext.SaveChangesAsync();
+            //Borramos el usuario
+            await _userHelper.DeleteUserAsync(owner.User.Email);
             return RedirectToAction(nameof(Index));
         }
+
 
         private bool OwnerExists(int id)
         {
@@ -251,6 +255,9 @@ namespace MyLeasing.Web.Controllers
                 await _dataContext.SaveChangesAsync();
                 return RedirectToAction($"Details/{model.OwnerId}");
             }
+
+            //S el modelo no es valido llena nuevamente el combde tipos de propiedades
+            model.PropertyTypes = _combosHelper.GetComboPropertyTypes();
             return View(model);
         }
 
@@ -416,7 +423,8 @@ namespace MyLeasing.Web.Controllers
                 await _dataContext.SaveChangesAsync();
                 return RedirectToAction($"{nameof(DetailsProperty)}/{model.PropertyId}");
             }
-
+            //Se debe llenar el modelo nuevamente cuando el modelo no es valido
+            model.Lessees = _combosHelper.GetComboLessees();
             return View(model);
         }
 
@@ -497,6 +505,34 @@ namespace MyLeasing.Web.Controllers
             return RedirectToAction($"{nameof(DetailsProperty)}/{contract.Property.Id}");
         }
 
+        public async Task<IActionResult> DeleteProperty(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var property = await _dataContext.Properties
+                .Include(p => p.Owner)
+                .Include(p=>p.PropertyImages)
+                .Include(p=>p.Contracts)
+                .FirstOrDefaultAsync(pi => pi.Id == id.Value);
+            if (property == null)
+            {
+                return NotFound();
+            }
+
+            if (property.Contracts.Count !=0)
+            {
+                ModelState.AddModelError(string.Empty,"La propiedad no puede borrarse porque tiene contratos");
+                return RedirectToAction($"{nameof(Details)}/{property.Owner.Id}");
+            }
+
+            _dataContext.PropertyImages.RemoveRange(property.PropertyImages);
+            _dataContext.Properties.Remove(property);
+            await _dataContext.SaveChangesAsync();
+            return RedirectToAction($"{nameof(Details)}/{property.Owner.Id}");
+        }
 
 
     }
