@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using MyLeasing.Web.Data;
 using MyLeasing.Web.Data.Entities;
@@ -13,7 +12,7 @@ using MyLeasing.Web.Models;
 
 namespace MyLeasing.Web.Controllers
 {
-    [Authorize (Roles = "Manager")]
+    [Authorize(Roles = "Manager")]
     public class OwnersController : Controller
     {
         private readonly DataContext _dataContext;
@@ -39,9 +38,9 @@ namespace MyLeasing.Web.Controllers
         // GET: Owners
         public IActionResult Index()
         {
-            return View( _dataContext.Owners
-                .Include(z=> z.User)
-                .Include(f=> f.Properties)
+            return View(_dataContext.Owners
+                .Include(z => z.User)
+                .Include(f => f.Properties)
                 .Include(o => o.Contracts));
         }
 
@@ -53,7 +52,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var owner = await _dataContext.Owners
+            Owner owner = await _dataContext.Owners
                 .Include(o => o.User)
                 .Include(o => o.Properties)
                 .ThenInclude(p => p.PropertyImages)
@@ -86,12 +85,12 @@ namespace MyLeasing.Web.Controllers
             {
                 //1. Creamos el metodo para crear un usuario
                 //Pasando los datos que estan el modelo, para luego crear el propietario
-                var user = await createUserAsync(model);
+                User user = await createUserAsync(model);
                 //8. Validamos si lo pudo crear o no
-                if (user!=null)
+                if (user != null)
                 {
                     //10. Si llegó bien el usuario debemos matricularlo a la coleccion de propietarios (Owners)
-                    var owner = new Owner
+                    Owner owner = new Owner
                     {
                         Properties = new List<Property>(),
                         Contracts = new List<Contract>(),
@@ -111,7 +110,7 @@ namespace MyLeasing.Web.Controllers
         private async Task<User> createUserAsync(AddUserViewModel model)//Debe retornar el usuario
         {
             //2. Creamos el objeto user con los atributos capturados del modelo
-            var user = new User
+            User user = new User
             {
                 Address = model.Address,
                 Document = model.Document,
@@ -122,7 +121,7 @@ namespace MyLeasing.Web.Controllers
                 UserName = model.Username
             };
             //3. Creamos el usuario usando el userHelper y el user que acabamos de crear
-            var result = await _userHelper.AddUserAsync(user, model.Password);
+            Microsoft.AspNetCore.Identity.IdentityResult result = await _userHelper.AddUserAsync(user, model.Password);
             if (result.Succeeded)//4. Si lo pudo crear lo traemos de nuevo en nuestra variable user
             {
                 user = await _userHelper.GetUserByEmailAsync(model.Username);
@@ -142,7 +141,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var owner = await _dataContext.Owners
+            Owner owner = await _dataContext.Owners
                 .Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == id.Value);
             if (owner == null)
@@ -150,7 +149,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var model = new EditUserViewModel
+            EditUserViewModel model = new EditUserViewModel
             {
                 Address = owner.User.Address,
                 Document = owner.User.Document,
@@ -169,7 +168,7 @@ namespace MyLeasing.Web.Controllers
         {
             if (ModelState.IsValid)
             {
-                var owner = await _dataContext.Owners
+                Owner owner = await _dataContext.Owners
                     .Include(o => o.User)
                     .FirstOrDefaultAsync(o => o.Id == model.Id);
 
@@ -196,15 +195,15 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var owner = await _dataContext.Owners
+            Owner owner = await _dataContext.Owners
                 .Include(o => o.User)
-                .Include(o=> o.Properties)//Para validar que no se pueda borrar si tiene propiedades
+                .Include(o => o.Properties)//Para validar que no se pueda borrar si tiene propiedades
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (owner == null)
             {
                 return NotFound();
             }
-            if (owner.Properties.Count !=0)
+            if (owner.Properties.Count != 0)
             {
                 ModelState.AddModelError(string.Empty, "Este propietario no se puede borrar porque tiene propiedades creadas");
                 return RedirectToAction(nameof(Index));
@@ -231,12 +230,12 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var owner = await _dataContext.Owners.FindAsync(id);
-            if(owner==null)
+            Owner owner = await _dataContext.Owners.FindAsync(id);
+            if (owner == null)
             {
                 return NotFound();
             }
-            var model = new PropertyViewModel
+            PropertyViewModel model = new PropertyViewModel
             {
                 OwnerId = owner.Id,
                 PropertyTypes = _combosHelper.GetComboPropertyTypes()
@@ -248,9 +247,9 @@ namespace MyLeasing.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> AddProperty(PropertyViewModel model)
         {
-            if(ModelState.IsValid)
+            if (ModelState.IsValid)
             {
-                var property = await _converterHeper.ToPropertyAsync(model, true);
+                Property property = await _converterHeper.ToPropertyAsync(model, true);
                 _dataContext.Properties.Add(property);
                 await _dataContext.SaveChangesAsync();
                 return RedirectToAction($"Details/{model.OwnerId}");
@@ -268,7 +267,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var property = await _dataContext.Properties
+            Property property = await _dataContext.Properties
                 .Include(p => p.Owner)
                 .Include(p => p.PropertyType)
                 .FirstOrDefaultAsync(p => p.Id == id.Value);
@@ -277,7 +276,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var model = _converterHeper.ToPropertyViewModel(property);
+            PropertyViewModel model = _converterHeper.ToPropertyViewModel(property);
 
             return View(model);
         }
@@ -287,7 +286,7 @@ namespace MyLeasing.Web.Controllers
         {
             if (ModelState.IsValid)
             {
-                var property = await _converterHeper.ToPropertyAsync(model, false);
+                Property property = await _converterHeper.ToPropertyAsync(model, false);
                 _dataContext.Properties.Update(property);
                 await _dataContext.SaveChangesAsync();
                 return RedirectToAction($"Details/{model.OwnerId}");
@@ -302,7 +301,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var property = await _dataContext.Properties//Consulta relacionada que trae muchos valores
+            Property property = await _dataContext.Properties//Consulta relacionada que trae muchos valores
                 .Include(o => o.Owner) //de las relaciones, gracias a Linq son inner joins
                 .ThenInclude(o => o.User)
                 .Include(o => o.Contracts)
@@ -328,13 +327,13 @@ namespace MyLeasing.Web.Controllers
             }
 
             //Buscamos la propiedad
-            var property = await _dataContext.Properties.FindAsync(id.Value);
+            Property property = await _dataContext.Properties.FindAsync(id.Value);
             if (property == null)
             {
                 return NotFound();
             }
-             //Creamos el modelo para enviar a la vista
-            var model = new PropertyImageViewModel
+            //Creamos el modelo para enviar a la vista
+            PropertyImageViewModel model = new PropertyImageViewModel
             {
                 Id = property.Id
             };
@@ -350,7 +349,7 @@ namespace MyLeasing.Web.Controllers
             if (ModelState.IsValid)
             {
                 //creamos la variable path asumiendo que adiciono la imagen
-                var path = string.Empty;
+                string path = string.Empty;
 
                 //Imagefile=Iformfile donde se captura la imagen
                 //Si hay una imagen
@@ -362,7 +361,7 @@ namespace MyLeasing.Web.Controllers
                 }
 
                 //Creamos el objeto PropertyImage 
-                var propertyImage = new PropertyImage
+                PropertyImage propertyImage = new PropertyImage
                 {
                     ImageUrl = path,//Es la ruta que nos devovlio del método en la interface
                     //buscamos el objeto con el id, ya que desde el get no lo podemos enviar
@@ -388,7 +387,7 @@ namespace MyLeasing.Web.Controllers
 
             //mediante una consulta relacionada busca el objeto owner
             // usando el id de la propiedad
-            var property = await _dataContext.Properties
+            Property property = await _dataContext.Properties
                 .Include(p => p.Owner)
                 .FirstOrDefaultAsync(p => p.Id == id.Value);
             if (property == null)
@@ -396,7 +395,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var model = new ContractViewModel
+            ContractViewModel model = new ContractViewModel
             {
                 //gracias a la consulta relacionada ya podemos completar el modelo
                 //sacando los id que necesitamos enviarle
@@ -418,7 +417,7 @@ namespace MyLeasing.Web.Controllers
         {
             if (ModelState.IsValid)
             {
-                var contract = await _converterHeper.ToContractAsync(model, true);
+                Contract contract = await _converterHeper.ToContractAsync(model, true);
                 _dataContext.Contracts.Add(contract);
                 await _dataContext.SaveChangesAsync();
                 return RedirectToAction($"{nameof(DetailsProperty)}/{model.PropertyId}");
@@ -436,7 +435,7 @@ namespace MyLeasing.Web.Controllers
             }
 
             //Hacemos la consulta relacionada y le enviamos los objetos que necesitamos para sacar los id
-            var contract = await _dataContext.Contracts
+            Contract contract = await _dataContext.Contracts
                 .Include(p => p.Owner)
                 .Include(p => p.Lessee)
                 .Include(p => p.Property)
@@ -447,7 +446,7 @@ namespace MyLeasing.Web.Controllers
             }
 
             // return View(_converterHeper.ToContractViewModel(contract));
-            var model = _converterHeper.ToContractViewModel(contract);
+            ContractViewModel model = _converterHeper.ToContractViewModel(contract);
             return View(model);
         }
 
@@ -456,7 +455,7 @@ namespace MyLeasing.Web.Controllers
         {
             if (ModelState.IsValid)
             {
-                var contract = await _converterHeper.ToContractAsync(view, false);
+                Contract contract = await _converterHeper.ToContractAsync(view, false);
                 _dataContext.Contracts.Update(contract);
                 await _dataContext.SaveChangesAsync();
                 return RedirectToAction($"{nameof(DetailsProperty)}/{view.PropertyId}");
@@ -472,7 +471,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var propertyImage = await _dataContext.PropertyImages
+            PropertyImage propertyImage = await _dataContext.PropertyImages
                 .Include(pi => pi.Property)
                 .FirstOrDefaultAsync(pi => pi.Id == id.Value);
             if (propertyImage == null)
@@ -492,7 +491,7 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var contract = await _dataContext.Contracts
+            Contract contract = await _dataContext.Contracts
                 .Include(c => c.Property)
                 .FirstOrDefaultAsync(c => c.Id == id.Value);
             if (contract == null)
@@ -512,19 +511,19 @@ namespace MyLeasing.Web.Controllers
                 return NotFound();
             }
 
-            var property = await _dataContext.Properties
+            Property property = await _dataContext.Properties
                 .Include(p => p.Owner)
-                .Include(p=>p.PropertyImages)
-                .Include(p=>p.Contracts)
+                .Include(p => p.PropertyImages)
+                .Include(p => p.Contracts)
                 .FirstOrDefaultAsync(pi => pi.Id == id.Value);
             if (property == null)
             {
                 return NotFound();
             }
 
-            if (property.Contracts.Count !=0)
+            if (property.Contracts.Count != 0)
             {
-                ModelState.AddModelError(string.Empty,"La propiedad no puede borrarse porque tiene contratos");
+                ModelState.AddModelError(string.Empty, "La propiedad no puede borrarse porque tiene contratos");
                 return RedirectToAction($"{nameof(Details)}/{property.Owner.Id}");
             }
 
@@ -533,6 +532,30 @@ namespace MyLeasing.Web.Controllers
             await _dataContext.SaveChangesAsync();
             return RedirectToAction($"{nameof(Details)}/{property.Owner.Id}");
         }
+
+        public async Task<IActionResult> DetailsContract(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var contract = await _dataContext.Contracts
+                .Include(c => c.Owner)
+                .ThenInclude(o => o.User)
+                .Include(c => c.Lessee)
+                .ThenInclude(o => o.User)
+                .Include(c => c.Property)
+                .ThenInclude(p => p.PropertyType)
+                .FirstOrDefaultAsync(pi => pi.Id == id.Value);
+            if (contract == null)
+            {
+                return NotFound();
+            }
+
+            return View(contract);
+        }
+
 
 
     }
